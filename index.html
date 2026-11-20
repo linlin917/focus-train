@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>FocusTrain</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{--ac:#0055aa;--y:#ffd84a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#000;color:#fff;font-family:-apple-system,"Hiragino Sans","Noto Sans JP",system-ui,sans-serif;overflow:hidden}
+#app{position:fixed;inset:0;max-width:520px;margin:0 auto;overflow:hidden;background:#05070d}
+#map,#svg,#mapw{position:absolute;inset:0;width:100%;height:100%;background:#05070d}
+#mapw{z-index:1;transform:rotate(var(--rot,0deg));transition:transform .3s linear}#svg{z-index:2}
+#win{position:absolute;inset:0;width:100%;height:100%;z-index:5;display:none}#win.on{display:block}
+.scr{position:absolute;inset:0;display:none;flex-direction:column;z-index:10;pointer-events:none}
+.scr.on{display:flex}.solid{background:#000;pointer-events:auto}
+.top{padding:calc(18px + env(safe-area-inset-top)) 18px 0;pointer-events:auto}
+.bot{padding:16px 18px calc(18px + env(safe-area-inset-bottom));pointer-events:auto}
+.sp{flex:1}.g{background:#0b101aea;backdrop-filter:blur(18px);border-top:1px solid #ffffff1a;border-radius:26px 26px 0 0}
+button{font:inherit;color:inherit;cursor:pointer}
+.pill{display:block;width:100%;border:0;border-radius:999px;padding:16px;font-size:15px;font-weight:700;background:#fff;color:#000;margin-top:10px}
+.pill.dark{background:#ffffff22;color:#fff}.pill:disabled{opacity:.4}
+.badge{display:inline-block;font:700 11px ui-monospace,Menlo,monospace;color:var(--y);border:1.5px solid var(--y);border-radius:6px;padding:2px 6px;background:#000b;white-space:nowrap}
+.pin{position:absolute;transform:translate(-50%,-50%) rotate(calc(-1*var(--rot,0deg)))}
+h3{margin:0 0 12px;font-size:16px;text-align:center}
+small,.dim{color:#9aa6bd;font-size:12px}
+.h1{font-size:34px;font-weight:800;text-shadow:0 2px 14px #000}.gr{font-size:15px;color:#dfe8ff;text-shadow:0 1px 8px #000}
+#q,#note{width:100%;padding:13px 14px;border-radius:14px;border:0;background:#ffffff1f;color:#fff;font-size:16px;margin-bottom:8px}
+.row{display:flex;gap:12px;align-items:center;padding:12px 4px;border-bottom:1px solid #ffffff14}.row small{display:block;margin-top:2px}
+#sheet{position:absolute;left:0;right:0;bottom:0;z-index:30;padding:10px 18px calc(18px + env(safe-area-inset-bottom));display:none;max-height:78%;overflow:auto}
+.grab{width:40px;height:4px;border-radius:2px;background:#ffffff40;margin:0 auto 14px}
+.cards,#chips,.styles{display:flex;gap:10px;overflow-x:auto;padding:4px 0}
+.card{flex:0 0 auto;width:116px;padding:12px;border-radius:16px;background:#ffffff14;display:flex;flex-direction:column;gap:6px;border:1.5px solid transparent;align-items:flex-start}
+.card.sel{border-color:var(--y)}.card b{font-size:15px}
+#chips button,.styles button{flex:0 0 auto;border:0;border-radius:999px;padding:9px 14px;background:#ffffff1c;font-size:13px}
+#chips button.sel,.styles button.sel{background:#fff;color:#000;font-weight:700}
+.time{text-align:center;margin:10px 0 0;font-size:34px;font-weight:800}.time small{font-size:14px}
+input[type=range]{width:100%;accent-color:var(--y)}
+.menu{display:flex;gap:8px;margin-top:10px}.menu button{flex:1;border:0;border-radius:14px;padding:12px;background:#ffffff1c;font-size:14px}
+.obw{flex:1;display:flex;flex-direction:column;padding:calc(24px + env(safe-area-inset-top)) 22px calc(24px + env(safe-area-inset-bottom))}
+.dots{display:flex;gap:6px}.dots i{flex:1;height:3px;border-radius:2px;background:#ffffff30}.dots i.f{background:#fff}
+.obt{flex:1;display:flex;flex-direction:column;justify-content:center;gap:10px}.big{font-size:34px;font-weight:800;line-height:1.35;color:#8d9be0}
+.big.glow{color:#fff;font-size:42px;text-shadow:0 0 18px #38d6ff,0 0 40px var(--ac)}
+.bar{height:16px;margin:12px 0;--p:0%;background:linear-gradient(90deg,#fff var(--p),#ffffff40 var(--p));-webkit-mask:repeating-linear-gradient(90deg,#000 0 2px,transparent 2px 6px);mask:repeating-linear-gradient(90deg,#000 0 2px,transparent 2px 6px)}
+.rt{display:flex;justify-content:space-between;align-items:center;font:700 20px ui-monospace,Menlo,monospace}
+.fl{display:flex;justify-content:space-between;align-items:flex-end}.rem{text-align:right;font:700 30px ui-monospace,Menlo,monospace}
+.ok{color:#5ef2a0;font-size:13px;font-weight:700}
+.ticket{background:#fff;color:#111;border-radius:22px;padding:22px;margin:auto 0}.ticket small{color:#667}
+.cd{display:flex;justify-content:space-between;align-items:center;margin:14px 0;font-size:30px;font-weight:800}.cd small{display:block;font-size:12px;font-weight:600}
+.ticket dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0 0 14px;font-size:14px}.ticket dd{margin:0;text-align:right;font-weight:700}
+.barcode{height:44px;background:repeating-linear-gradient(90deg,#111 0 2px,#fff 2px 4px,#111 4px 5px,#fff 5px 8px,#111 8px 9px,#fff 9px 12px);margin-bottom:12px}
+.ticket #note{background:#eef0f5;color:#111;margin:0}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}.stats div{background:#ffffff14;border-radius:14px;padding:12px}.stats b{display:block;font-size:20px;margin-top:4px}
+.brow{display:flex;align-items:center;gap:10px;font-size:13px;margin:6px 0}.brow span{width:70px}.brow i{height:8px;background:var(--ac);border-radius:4px;min-width:2px}.brow em{font-style:normal;color:#9aa6bd}
+.trn{width:16px;height:46px;margin:-23px 0 0 -8px;border-radius:9px 9px 4px 4px;border:2px solid #0055aa;background:repeating-linear-gradient(#fff 0 8px,#0055aa 8px 10px);box-shadow:0 0 14px #38d6ff}
+.cb{width:44px;height:44px;border-radius:50%;border:0;background:#1a1f2ccc;backdrop-filter:blur(8px);font-size:18px;color:#fff}
+.fr{display:flex;justify-content:space-between;align-items:flex-start}.col{display:flex;flex-direction:column;gap:10px}.pl{background:#1a1f2ccc;border-radius:26px;padding:6px;backdrop-filter:blur(8px)}.pl .cb{background:none}
+.nx{margin-top:6px;padding:8px 16px;border-radius:999px;background:#0b101aea;font-size:13px;font-weight:700}
+.fb{display:flex;justify-content:space-between;text-shadow:0 1px 10px #000}.rem{font-size:36px;font-weight:700}.rem small{font-size:15px;color:#e6eefc}
+.sm{display:grid;grid-template-columns:1fr 1fr 28px 1fr 1fr;gap:8px;padding:16px 28px;overflow:auto}.sm i{display:block}
+.st{height:46px;border-radius:12px;border:1.5px solid #ffffff30;background:#ffffff10;font-size:11px;color:#9aa6bd}.st.sel{background:var(--y);color:#000;border-color:var(--y);font-weight:700}.st:disabled{opacity:.25}
+.gl{background:#1a1f2cee;border-radius:18px;padding:14px;margin-bottom:6px}
+.ticket{background:#ffffff0f!important;color:#fff!important;border:1px solid #ffffff1a;margin:4px 0 14px!important}.ticket small{color:#9aa6bd!important}.ticket .cd{color:#fff}.ticket #note{background:#ffffff1f!important;color:#fff!important}
+#attr{position:absolute;left:8px;bottom:2px;z-index:12;font-size:9px;color:#fffc;text-shadow:0 0 3px #000;pointer-events:none}
+.gstage{position:relative;width:320px;height:360px;margin:18px auto 0;flex:none}
+.gu{position:absolute;top:60px;width:96px;height:270px;border-radius:14px 14px 4px 4px;background:linear-gradient(#3b4150,#232731);border:1px solid #ffffff22}.gu.l{left:10px}.gu.r{right:10px}
+.glamp{position:absolute;top:10px;left:50%;width:36px;height:8px;margin-left:-18px;border-radius:4px;background:#d33;box-shadow:0 0 10px #d33}.glamp.ok{background:#3df;box-shadow:0 0 14px #3df}
+.gdisp{position:absolute;top:26px;left:8px;right:8px;height:34px;border-radius:6px;background:#06150f;color:#6f6;font-size:11px;display:flex;align-items:center;justify-content:center;text-align:center;padding:2px}
+.gpad{position:absolute;top:72px;left:12px;right:12px;height:54px;border-radius:10px;background:#0a3a6a;transform:perspective(300px) rotateX(38deg);box-shadow:0 0 0 2px #fff3;display:flex;align-items:center;justify-content:center;transition:box-shadow .2s,background .2s}
+.gpad.ok{background:#0a6aba;box-shadow:0 0 24px #3df,0 0 0 2px #fff6}
+.gar{position:absolute;bottom:22px;left:50%;width:34px;height:34px;margin-left:-17px}.gar .okp{display:none}.gar.ok .okp{display:block}.gar.ok .xp{display:none}
+.gf{position:absolute;top:214px;height:10px;width:54px;background:#ffd84a;border-radius:5px;transition:transform .5s}.gf.l{left:106px;transform-origin:left}.gf.r{right:106px;transform-origin:right}.gf.open{transform:scaleX(.08)}
+.gc{position:absolute;left:95px;top:268px;width:130px;transition:transform .75s cubic-bezier(.3,.7,.3,1);cursor:pointer;filter:drop-shadow(0 8px 12px #000a)}
+.gc.go{transform:translate(-102px,-150px) scale(.5) rotate(-8deg)}
+@keyframes bob{50%{transform:translateY(-8px)}}.gc.idle{animation:bob 1.6s ease-in-out infinite}
+#mapmsg{display:none;position:absolute;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 64px);z-index:40;font-size:11px;line-height:1.5;background:#000d;border:1px solid #ffffff30;padding:8px 10px;border-radius:10px}
+/* ===== glassmorphism ===== */
+:root{--glass:rgba(255,255,255,.08);--gb:rgba(255,255,255,.2)}
+.solid{background:radial-gradient(circle at 15% 8%,#0055aaaa,transparent 46%),radial-gradient(circle at 90% 28%,#38d6ff55,transparent 42%),radial-gradient(circle at 40% 105%,#7a4dff55,transparent 52%),#05070d!important}
+.g,#sheet{background:rgba(14,20,34,.55)!important;backdrop-filter:blur(24px) saturate(170%);-webkit-backdrop-filter:blur(24px) saturate(170%);border:1px solid var(--gb);box-shadow:0 -8px 40px #0008,inset 0 1px 0 #ffffff33}
+.t,.gl,.card,.nx,.pl,.cb,#chips button,.styles button,.stats div,.pill.dark,.st{background:var(--glass);backdrop-filter:blur(18px) saturate(160%);-webkit-backdrop-filter:blur(18px) saturate(160%);border:1px solid var(--gb);box-shadow:0 8px 28px #0006,inset 0 1px 0 #ffffff2e}
+.ticket{background:var(--glass)!important;backdrop-filter:blur(18px) saturate(160%);-webkit-backdrop-filter:blur(18px) saturate(160%);border:1px solid var(--gb)!important;box-shadow:0 8px 28px #0006,inset 0 1px 0 #ffffff2e}
+.pl .cb{background:none;border:0;box-shadow:none;backdrop-filter:none}
+#chips button.sel,.styles button.sel{background:rgba(255,255,255,.92);color:#000}
+.st.sel{background:var(--y);color:#000;border-color:var(--y)}.st:disabled{opacity:.3}
+.card.sel{border:1.5px solid var(--y)}
+.pill:not(.dark){background:linear-gradient(135deg,#fff,#dbe7ff);box-shadow:0 6px 24px #38d6ff33}
+/* ===== bento grid ===== */
+.bento{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.t{border-radius:22px;padding:14px;color:#fff;text-align:left;min-width:0}
+.w2{grid-column:span 2}.w3{grid-column:span 3}.w4{grid-column:span 4}.w6{grid-column:span 6}
+.tv{font-size:28px;font-weight:800;margin-top:4px}.tv small{font-size:14px}
+.tb{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-size:12px;cursor:pointer}
+.t.cta{padding:8px}.t .pill,.bento>.pill{margin:0}.bento>.pill{border-radius:22px;grid-column:span 4}
+.bar2{height:6px;border-radius:3px;background:#ffffff22;margin:10px 0 6px;overflow:hidden}.bar2 i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--ac),#38d6ff)}
+.t .cards{margin:4px -2px 0}.rem{font-size:30px}
+.stats{grid-template-columns:repeat(6,1fr)!important}.stats div:nth-child(1){grid-column:span 2}.stats div:nth-child(2){grid-column:span 4}.stats div:nth-child(3){grid-column:span 4}.stats div:nth-child(4){grid-column:span 2}
+.sx{position:absolute;top:10px;right:12px;width:34px;height:34px;border-radius:50%;border:1px solid var(--gb);background:#ffffff22;color:#fff;display:flex;align-items:center;justify-content:center;padding:0}
+#scrim{position:absolute;inset:0;z-index:29;display:none;background:#0006}
+.fold{display:block;margin:0 auto 8px;width:56px;height:26px;border-radius:13px;border:1px solid var(--gb);background:#ffffff26;color:#fff;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:0}
+.fold svg{transition:transform .2s}.scr.fold .fold svg{transform:rotate(180deg)}.scr.fold .bento{display:none}
+#types{display:flex;gap:8px;align-items:center}#types button,#chips2 button{flex:0 0 auto;border:0;border-radius:999px;padding:9px 14px;background:#ffffff1c;color:#fff;font-size:13px}#types button.sel,#chips2 button.sel{background:#fff;color:#000;font-weight:700}
+#chips2{display:flex;flex-wrap:wrap;gap:8px}
+#th1,#th2,#tdest,#tf1,#acard,#hcode,#hname,#fmode,.cpk{cursor:pointer}
+#mc{position:absolute;right:12px;top:40%;z-index:11;display:none;flex-direction:column;gap:8px}
+#xfer{position:absolute;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 110px);z-index:35;display:none}
+.xc{background:rgba(14,20,34,.7)}.xs{font-size:20px;font-weight:800;margin:4px 0}.xl{display:flex;justify-content:space-between;font-size:12px;font-weight:700}
+.xw{position:relative;height:14px;border-radius:7px;margin:10px 0;background:linear-gradient(90deg,var(--xa,#0055aa),var(--xb,#e23a4a))}
+.xw i{position:absolute;left:4%;top:-5px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 0 12px #fff;animation:walk 6s linear forwards}
+@keyframes walk{from{left:2%}to{left:90%}}
+.gslot{position:absolute;left:14px;right:14px;top:150px;height:8px;border-radius:4px;background:#000;box-shadow:inset 0 0 0 1px #ffffff22,0 0 0 2px #0006;display:block}
+.gpad.read{box-shadow:0 0 0 3px #38d6ff,0 0 30px #38d6ff;background:#0a5aa8}
+.gc.tap svg{animation:tapb .3s ease 2}@keyframes tapb{50%{transform:translateY(6px) scale(.97)}}
+.gc.tkin{animation:none;transform:translate(-92px,-120px) scale(.45) rotate(90deg)}
+.gc.tkhide{animation:none;transform:translate(-92px,-120px) scale(.45) rotate(90deg);opacity:0;transition:opacity .2s}
+.gc.tkout{animation:none;transform:translate(92px,-120px) scale(.45) rotate(90deg);opacity:1;transition:none}
+.gc.tkback{animation:none;transform:none;opacity:1;transition:transform .7s}
+</style></head>
+<body><div id="app">
+<div id="attr"></div><div id="mapmsg" onclick="this.style.display='none'"></div><div id="mapw"><div id="map"></div></div><canvas id="win"></canvas><svg id="svg" preserveAspectRatio="xMidYMid meet"></svg>
+<div id="ob" class="scr solid"></div>
+<div id="home" class="scr"><div class="top"><div class="gr" id="greet"></div><div class="h1" id="hname"></div><span class="badge" id="hcode"></span></div><div class="sp"></div>
+ <div class="bot"><div class="bento">
+  <div class="t w6 cta"><button class="pill" id="start">運行を開始</button></div>
+  <div class="t w3" id="th1"><small>累計距離</small><div class="tv" id="hkm">0 km</div><div class="bar2"><i id="hearth"></i></div><small id="hearthl">地球一周 0%</small></div>
+  <div class="t w3" id="th2"><small>完走回数</small><div class="tv" id="hcnt">0回</div><small id="hmin">累計 0分</small></div>
+  <button class="t w2 tb" id="mh"></button><button class="t w2 tb" id="mt"></button><button class="t w2 tb" id="ms"></button></div></div></div>
+<div id="plan" class="scr"><div class="top"><button class="pill dark" id="pback" style="width:auto;padding:10px 18px;margin:0"></button></div><div class="sp"></div>
+ <div class="bot"><div class="bento">
+  <div class="t w3"><small>集中時間</small><div class="tv"><span id="tmin">--</span><small> 分</small></div></div>
+  <div class="t w3" id="tdest"><small id="pdest">--</small><div class="tv" id="pkm">--</div></div>
+  <div class="t w6"><div id="types"></div></div>
+  <div class="t w6"><input type="range" id="rng" min="10" max="180" step="5" value="30"><div class="cards" id="cards"></div></div>
+  <button class="t w2 tb" id="psearch"></button><button class="pill" id="book">運行を予約</button></div></div></div>
+<div id="fly" class="scr"><div class="top fr"><div class="col"><button class="cb" id="fpause"></button><button class="cb" id="fmode"></button></div><div class="nx" id="fnext"></div>
+ <div class="col pl"><button class="cb" id="bfit"></button><button class="cb" id="bfol"></button><button class="cb" id="bsty"></button><button class="cb" id="bwin"></button></div></div><div class="sp"></div>
+ <div class="bot"><div class="bento"><div class="t w3" id="tf1"><small>残り時間</small><div class="rem" id="frem"></div></div><div class="t w3"><small>残り距離</small><div class="rem" id="fkm"></div></div></div></div></div>
+<div id="seat" class="scr solid"><div class="top"><button class="cb" id="sback"></button></div><div class="sm" id="smap"></div><div class="sp"></div>
+ <div class="bot"><div class="gl"><small id="slab"></small><div id="chips" style="margin-top:8px"></div></div><button class="pill" id="issue">乗車券を発行</button></div></div>
+<div id="plat" class="scr solid" style="background:#000"><canvas id="pc" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+ <div class="top" style="position:relative;z-index:2;text-align:right"><button class="pill dark" id="pskip" style="width:auto;padding:8px 16px;margin:0">スキップ</button></div><div class="sp"></div>
+ <div class="bot" style="position:relative;z-index:2"><div class="t" id="pcap" style="text-align:center;font-weight:700"></div></div></div>
+<div id="arr" class="scr solid" style="padding:calc(14px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));overflow:auto">
+ <div><button class="cb" id="aback" style="display:none"></button></div><div id="acard" style="margin:12px 0 4px"></div><div class="dim" style="text-align:center;font-size:11px;margin-bottom:8px">カードをタップして種類を変更(Suica / FocusCard / きっぷ)</div>
+ <div class="ticket"><small id="astat"></small>
+  <div class="cd"><div id="ac1"></div><span style="color:#38d6ff">→</span><div id="ac2" style="text-align:right"></div></div>
+  <dl><dt>種別</dt><dd id="atype"></dd><dt>座席</dt><dd id="aseat"></dd><dt>距離</dt><dd id="akm"></dd><dt>所要時間</dt><dd id="amin"></dd><dt>日付</dt><dd id="adt"></dd><dt>集中する内容</dt><dd id="amode"></dd></dl>
+  <input id="note" placeholder="メモ(例: 次はここから再開)"></div>
+ <button class="pill" id="next">次の運行へ</button></div>
+<div id="gate" class="scr solid"><div class="top"><button class="cb" id="gback"></button></div>
+ <div style="text-align:center;margin-top:8px"><small id="gkind"></small><div id="gname" style="font-size:22px;font-weight:800;margin-top:4px"></div></div>
+ <div class="gstage"><div class="gu l"><i class="glamp" id="glamp"></i><div class="gdisp" id="gdisp"></div>
+   <div class="gpad" id="gpad"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#9fe3ff" stroke-width="2" stroke-linecap="round"><path d="M5 12a7 7 0 017-7M5 12a7 7 0 007 7M9 12a3 3 0 013-3M9 12a3 3 0 003 3"/><circle cx="14.5" cy="12" r="1.4" fill="#9fe3ff"/></svg></div>
+   <i class="gslot"></i><div class="gar" id="gar"><svg viewBox="0 0 30 30" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path class="xp" d="M6 6l18 18M24 6L6 24" stroke="#d33"/><path class="okp" d="M15 4v18M7 15l8 9 8-9" stroke="#3d6"/></svg></div></div>
+  <div class="gu r"><i class="gslot"></i></div><div class="gf l" id="gfl"></div><div class="gf r" id="gfr"></div><div class="gc idle" id="gcard"></div></div>
+ <div class="sp"></div><div class="bot"><button class="pill" id="gbtn">カードをタッチする</button></div></div>
+<div id="mc"><button class="cb" id="mz1"></button><button class="cb" id="mz2"></button><button class="cb" id="mz3"></button></div>
+<div id="xfer"><div class="t xc"><small>乗り換え</small><div class="xs" id="xst"></div><div class="xl"><span id="xa"></span><span id="xb"></span></div><div class="xw"><i id="xp"></i></div><small>ホームを移動しています…</small></div></div>
+<div id="scrim"></div><div id="sheet" class="g"></div>
+</div>
+<script>
+// ===== 路線・駅データベース: [駅名, 緯度, 経度] / 文字列は既出駅への参照 =====
+const ST = {}, LN = {};
+function line(id, name, color, arr){
+  const names = arr.map(s => {
+    if (typeof s === 'string') return s;
+    ST[s[0]] ??= {n:s[0], lat:s[1], lng:s[2], lines:[]};
+    return s[0];
+  });
+  names.forEach(n => { if(!ST[n].lines.includes(id)) ST[n].lines.push(id); });
+  LN[id] = {name, color, st:names};
+}
+line('tojo','東武東上線','#0055aa',[
+['池袋',35.7295,139.7109],['北池袋',35.7370,139.7200],['下板橋',35.7440,139.7200],['大山',35.7517,139.7040],['中板橋',35.7570,139.6900],
+['ときわ台',35.7640,139.6800],['上板橋',35.7685,139.6720],['東武練馬',35.7743,139.6540],['下赤塚',35.7757,139.6370],['成増',35.7778,139.6290],
+['和光市',35.7880,139.6120],['朝霞',35.7973,139.5937],['朝霞台',35.8010,139.5810],['志木',35.8090,139.5690],['柳瀬川',35.8170,139.5600],
+['みずほ台',35.8240,139.5490],['鶴瀬',35.8320,139.5350],['ふじみ野',35.8440,139.5210],['上福岡',35.8560,139.5110],['新河岸',35.8730,139.5040],
+['川越',35.9060,139.4820],['川越市',35.9150,139.4680],['霞ヶ関',35.9290,139.4400],['鶴ヶ島',35.9380,139.3960],['若葉',35.9450,139.3830],
+['坂戸',35.9570,139.3880],['北坂戸',35.9720,139.3600],['高坂',36.0010,139.3560],['東松山',36.0390,139.3990],['森林公園',36.0480,139.3600],
+['つきのわ',36.0490,139.3350],['武蔵嵐山',36.0540,139.3180],['小川町',36.0560,139.2640],['東武竹沢',36.0870,139.2420],['みなみ寄居',36.0990,139.2180],
+['男衾',36.1050,139.1950],['鉢形',36.1100,139.1850],['玉淀',36.1150,139.1870],['寄居',36.1170,139.1930]]);
+line('ogose','東武越生線','#4a9be8',['坂戸',['西大家',35.9470,139.3730],['一本松',35.9420,139.3640],['川角',35.9380,139.3570],
+['武州長瀬',35.9360,139.3390],['東毛呂',35.9380,139.3260],['武州唐沢',35.9400,139.3110],['越生',35.9560,139.2990]]);
+line('fuku','東京メトロ副都心線','#b4733a',['和光市',['地下鉄成増',35.7770,139.6310],['地下鉄赤塚',35.7690,139.6420],['平和台',35.7600,139.6520],
+['氷川台',35.7490,139.6740],['小竹向原',35.7430,139.6790],['千川',35.7358,139.6860],['要町',35.7330,139.6990],'池袋',
+['雑司が谷',35.7190,139.7150],['西早稲田',35.7090,139.7090],['東新宿',35.6985,139.7060],['新宿三丁目',35.6910,139.7060],
+['北参道',35.6800,139.7050],['明治神宮前',35.6680,139.7030],['渋谷',35.6580,139.7016]]);
+line('yuraku','東京メトロ有楽町線','#d8b02a',['和光市','地下鉄成増','地下鉄赤塚','平和台','氷川台','小竹向原','千川','要町','池袋',
+['東池袋',35.7290,139.7200],['護国寺',35.7180,139.7270],['江戸川橋',35.7100,139.7260],['飯田橋',35.7020,139.7450],['市ケ谷',35.6910,139.7360],
+['麹町',35.6840,139.7380],['永田町',35.6790,139.7400],['桜田門',35.6770,139.7510],['有楽町',35.6750,139.7630],['銀座一丁目',35.6740,139.7670],
+['新富町',35.6720,139.7710],['月島',35.6640,139.7840],['豊洲',35.6540,139.7960],['辰巳',35.6490,139.8130],['新木場',35.6460,139.8270]]);
+line('toyoko','東急東横線','#e23a4a',['渋谷',['代官山',35.6490,139.7030],['中目黒',35.6440,139.6990],['祐天寺',35.6340,139.6910],['学芸大学',35.6290,139.6850],
+['都立大学',35.6170,139.6770],['自由が丘',35.6070,139.6700],['田園調布',35.5960,139.6670],['多摩川',35.5880,139.6680],['新丸子',35.5770,139.6600],
+['武蔵小杉',35.5760,139.6590],['元住吉',35.5650,139.6550],['日吉',35.5540,139.6470],['綱島',35.5380,139.6340],['大倉山',35.5230,139.6300],
+['菊名',35.5100,139.6320],['妙蓮寺',35.5030,139.6260],['白楽',35.4950,139.6190],['東白楽',35.4890,139.6300],['反町',35.4720,139.6240],['横浜',35.4660,139.6220]]);
+line('mm','みなとみらい線','#2fd1b8',['横浜',['新高島',35.4640,139.6310],['みなとみらい',35.4580,139.6320],['馬車道',35.4510,139.6350],
+['日本大通り',35.4470,139.6470],['元町・中華街',35.4420,139.6500]]);
+// ===== JR東日本(第一弾: 山手線・中央線快速・京浜東北線) =====
+line('jy','JR山手線','#9acd32',[['東京',35.6812,139.7671],'有楽町',['新橋',35.6660,139.7580],['浜松町',35.6550,139.7570],['田町',35.6456,139.7476],
+['高輪ゲートウェイ',35.6355,139.7407],['品川',35.6284,139.7387],['大崎',35.6197,139.7286],['五反田',35.6258,139.7235],['目黒',35.6339,139.7158],
+['恵比寿',35.6467,139.7101],'渋谷',['原宿',35.6702,139.7027],['代々木',35.6830,139.7020],['新宿',35.6896,139.7006],['新大久保',35.7013,139.7000],
+['高田馬場',35.7126,139.7037],['目白',35.7213,139.7064],'池袋',['大塚',35.7313,139.7285],['巣鴨',35.7335,139.7393],['駒込',35.7365,139.7469],
+['田端',35.7381,139.7611],['西日暮里',35.7320,139.7667],['日暮里',35.7278,139.7708],['鶯谷',35.7208,139.7783],['上野',35.7141,139.7774],
+['御徒町',35.7075,139.7747],['秋葉原',35.6984,139.7731],['神田',35.6918,139.7709],'東京']);
+line('jc','JR中央線(快速)','#f15a22',['東京','神田',['御茶ノ水',35.6993,139.7637],['四ツ谷',35.6862,139.7300],'新宿',['中野',35.7058,139.6659],
+['高円寺',35.7053,139.6497],['阿佐ケ谷',35.7047,139.6358],['荻窪',35.7049,139.6200],['西荻窪',35.7035,139.5995],['吉祥寺',35.7032,139.5797],
+['三鷹',35.7027,139.5607],['武蔵境',35.7011,139.5430],['東小金井',35.7019,139.5226],['武蔵小金井',35.7005,139.5075],['国分寺',35.7006,139.4804],
+['西国分寺',35.7001,139.4607],['国立',35.6998,139.4455],['立川',35.6980,139.4137],['日野',35.6747,139.3952],['豊田',35.6602,139.3786],
+['八王子',35.6556,139.3388],['西八王子',35.6575,139.3207],['高尾',35.6419,139.2820]]);
+line('jk','JR京浜東北線','#00b2e5',[['大宮',35.9063,139.6240],['さいたま新都心',35.8940,139.6310],['与野',35.8837,139.6407],['北浦和',35.8651,139.6451],
+['浦和',35.8590,139.6574],['南浦和',35.8465,139.6693],['蕨',35.8213,139.6910],['西川口',35.8099,139.7077],['川口',35.8020,139.7240],['赤羽',35.7782,139.7208],
+['東十条',35.7621,139.7370],['王子',35.7528,139.7380],['上中里',35.7482,139.7448],'田端','西日暮里','日暮里','鶯谷','上野','御徒町','秋葉原','神田','東京','有楽町',
+'新橋','浜松町','田町','高輪ゲートウェイ','品川',['大井町',35.6064,139.7347],['大森',35.5890,139.7279],['蒲田',35.5625,139.7160],['川崎',35.5311,139.6970],
+['鶴見',35.5086,139.6764],['新子安',35.4934,139.6575],['東神奈川',35.4770,139.6310],'横浜',['桜木町',35.4510,139.6310]]);
+// ----- JR第1グループ -----
+line('jne','JR根岸線','#00b2e5',['桜木町',['関内',35.4440,139.6350],['石川町',35.4390,139.6430],['山手',35.4290,139.6500],['根岸',35.4130,139.6420],
+['磯子',35.4000,139.6200],['新杉田',35.3880,139.6140],['洋光台',35.3680,139.5910],['港南台',35.3600,139.5770],['本郷台',35.3560,139.5500],['大船',35.3540,139.5310]]);
+line('jt','JR東海道線','#f68b1e',['東京','新橋','品川','川崎','横浜',['戸塚',35.4010,139.5330],'大船',['藤沢',35.3385,139.4880],['辻堂',35.3350,139.4480],
+['茅ケ崎',35.3310,139.4050],['平塚',35.3280,139.3510],['大磯',35.3110,139.3150],['二宮',35.3000,139.2560],['国府津',35.2760,139.2200],['鴨宮',35.2680,139.1930],
+['小田原',35.2560,139.1550],['早川',35.2360,139.1450],['根府川',35.1900,139.1460],['真鶴',35.1560,139.1390],['湯河原',35.1460,139.0770],['熱海',35.1040,139.0780]]);
+line('jyo','JR横須賀線・総武線(快速)','#1069b4',[['久里浜',35.2283,139.7034],['衣笠',35.2560,139.6810],['横須賀',35.2830,139.6730],['田浦',35.3033,139.6558],
+['東逗子',35.3085,139.6000],['逗子',35.2960,139.5800],['鎌倉',35.3190,139.5500],['北鎌倉',35.3350,139.5470],'大船','戸塚',['東戸塚',35.4300,139.5530],
+['保土ケ谷',35.4420,139.5990],'横浜',['新川崎',35.5470,139.6730],'武蔵小杉',['西大井',35.6000,139.7220],'品川','新橋','東京',['新日本橋',35.6870,139.7740],
+['馬喰町',35.6915,139.7830],['錦糸町',35.6969,139.8143],['新小岩',35.7167,139.8570],['市川',35.7287,139.9078],['船橋',35.7011,139.9850],
+['津田沼',35.6914,140.0210],['稲毛',35.6350,140.0790],['千葉',35.6130,140.1130]]);
+line('jss','JR湘南新宿ライン(大宮〜逗子)','#e8452c',['大宮','浦和','赤羽','池袋','新宿','渋谷','恵比寿','大崎','西大井','武蔵小杉','新川崎','横浜','保土ケ谷','東戸塚','戸塚',
+'大船','北鎌倉','鎌倉','逗子']);
+line('jyk','JR横浜線','#a5c42e',['八王子',['片倉',35.6350,139.3560],['八王子みなみ野',35.6240,139.3600],['相原',35.6070,139.3510],['橋本',35.5950,139.3450],
+['相模原',35.5710,139.3720],['矢部',35.5680,139.3890],['淵野辺',35.5690,139.4030],['古淵',35.5600,139.4280],['町田',35.5420,139.4450],['成瀬',35.5320,139.4730],
+['長津田',35.5130,139.4980],['十日市場',35.5160,139.5310],['中山',35.5130,139.5410],['鴨居',35.5130,139.5600],['小机',35.5100,139.6050],['新横浜',35.5070,139.6170],
+'菊名',['大口',35.4870,139.6290],'東神奈川','横浜','桜木町']);
+
+
+// ===== 共通 =====
+let RATE=1.75;const $=id=>document.getElementById(id),EARTH=40075;
+const SYM={tojo:'TJ',ogose:'OG',fuku:'F',yuraku:'Y',toyoko:'TY',mm:'MM',jy:'JY',jc:'JC',jk:'JK',jne:'JK',jt:'JT',jyo:'JO',jss:'JS',jyk:'JH'};
+const code=n=>{const l=ST[n].lines[0];return SYM[l]+String(LN[l].st.indexOf(n)+1).padStart(2,'0')};
+const hav=(a,b)=>{const r=Math.PI/180,dl=(b.lat-a.lat)*r,dn=(b.lng-a.lng)*r,h=Math.sin(dl/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dn/2)**2;return 12742*Math.asin(Math.sqrt(h))};
+const mins=(a,b)=>Math.max(10,Math.round(hav(a,b)*RATE));
+const IC={
+pen:'<path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/>',
+book:'<path d="M3 5h6a3 3 0 013 3v12a2 2 0 00-2-2H3z"/><path d="M21 5h-6a3 3 0 00-3 3v12a2 2 0 012-2h7z"/>',
+note:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/>',
+work:'<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2M3 13h18"/>',
+cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+zen:'<circle cx="12" cy="5.5" r="2.5"/><path d="M4 20c0-4 3.5-6 8-6s8 2 8 6M7.5 14L4 16M16.5 14l3.5 2"/>',
+gym:'<path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/>',
+music:'<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+pause:'<rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/>',
+route:'<circle cx="6" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="M8 6h6a3 3 0 010 6h-4a3 3 0 000 6h6"/>',
+nav:'<path d="M12 3l6.5 17-6.5-4-6.5 4z" fill="currentColor"/>',
+map:'<path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>',
+win:'<rect x="4" y="3" width="16" height="18" rx="6"/><path d="M4 13h16"/>',
+train:'<rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 11h14M9 21l2-4M15 21l-2-4"/><circle cx="9" cy="14" r=".8" fill="currentColor"/><circle cx="15" cy="14" r=".8" fill="currentColor"/>',
+back:'<path d="M15 5l-7 7 7 7"/>',x:'<path d="M6 6l12 12M18 6L6 18"/>',plus:'<path d="M12 5v14M5 12h14"/>',minus:'<path d="M5 12h14"/>',locate:'<circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>',chev:'<path d="M6 9l6 6 6-6"/>',hist:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',gear:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/>',search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>'};
+const ic=(n,s=18)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px">${IC[n]||''}</svg>`;
+const MODES=[['執筆','pen'],['読書','book'],['勉強','note'],['仕事','work'],['計画','cal'],['瞑想','zen'],['運動','gym'],['音楽','music']];
+const TYPES={local:['普通',1.75],rapid:['快速',1.4],ltd:['特急',1.1]};
+let S={cur:null,hist:[],style:'sat',sound:true,ob:false,card:'suica',type:'local'};
+try{Object.assign(S,JSON.parse(localStorage.getItem('ft2')||'{}'))}catch(e){}
+RATE=(TYPES[S.type]||TYPES.local)[1];
+const save=()=>{try{localStorage.setItem('ft2',JSON.stringify(S))}catch(e){}};
+let AC=null,F=null,LH=null;
+function beep(ok){if(!S.sound||!AC)return;try{(ok?[[880,0],[1320,.2]]:[[220,0],[165,.25]]).forEach(([f,d])=>{const o=AC.createOscillator(),g=AC.createGain(),c=AC.currentTime+d;o.frequency.value=f;o.connect(g);g.connect(AC.destination);g.gain.setValueAtTime(.15,c);g.gain.exponentialRampToValueAtTime(.001,c+.4);o.start(c);o.stop(c+.45)})}catch(e){}}
+let CS='home';const go=id=>{CS=id;document.querySelectorAll('.scr').forEach(e=>{e.classList.toggle('on',e.id===id);if(e.id!==id)e.classList.remove('fold')});closeSheet();const m=$('mc');if(m)m.style.display=['home','plan','fly'].includes(id)?'flex':'none'};
+let SHC=null;
+function sheet(h,onClose){SHC=onClose||null;const s=$('sheet');s.innerHTML='<button class="sx" id="sx" aria-label="閉じる"></button><div class="grab"></div>'+h;s.style.display='block';$('scrim').style.display='block';$('sx').innerHTML=ic('x',16);$('sx').onclick=closeSheet}
+const closeSheet=()=>{$('sheet').style.display='none';$('scrim').style.display='none';const f=SHC;SHC=null;f&&f()};
+$('scrim').onclick=closeSheet;document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
+
+// ===== 地図(Leaflet。読めない時はSVG地図に自動切替) =====
+const TILES={sat:['https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg','衛星写真',18,'地図: 国土地理院 シームレス空中写真'],gstd:['https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png','地理院 標準',18,'地図: 国土地理院'],pale:['https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png','地理院 淡色',18,'地図: 国土地理院'],dark:['https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png','ダーク',19,'© OpenStreetMap contributors © CARTO'],mono:['https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png','モノクロ',19,'© OpenStreetMap contributors © CARTO']};
+let map=null,tile=null,grp=null,V={a:null,b:null,p:0,pad:0};
+const ll=s=>[s.lat,s.lng];
+const _la=Object.values(ST).map(s=>s.lat),_lo=Object.values(ST).map(s=>s.lng),LA1=Math.max(..._la),LO0=Math.min(..._lo),SW=(Math.max(..._lo)-LO0)*810+60,SH=(LA1-Math.min(..._la))*1000+60;
+const X=g=>(g-LO0)*810+30,Y=t=>(LA1-t)*1000+30;
+const mapNote=m=>{$('mapmsg').textContent=m;$('mapmsg').style.display='block'};
+function setTile(){if(!map)return;if(!TILES[S.style])S.style='sat';const T0=TILES[S.style];tile&&map.removeLayer(tile);tile=L.tileLayer(T0[0],{maxZoom:19,maxNativeZoom:T0[2],subdomains:'abcd'}).addTo(map);let tok=false,ter=0;tile.on('tileload',()=>{if(!tok){tok=true;$('svg').style.display='none';$('mapmsg').style.display='none'}});tile.on('tileerror',()=>{if(!tok&&++ter>2)mapNote('地図画像(国土地理院)を読み込めないため、簡易地図で表示しています。通信を確認するか、プレビューではなくSafari/Chromeでファイルを直接開いてください。(タップで閉じる)')});$('map').style.filter=S.style==='mono'?'grayscale(1)':'';$('attr').textContent=T0[3]}
+const mk=(s,c)=>L.marker(c||ll(s),{icon:L.divIcon({className:'',html:`<span class="badge pin" style="cursor:pointer">${code(s.n)} ${s.n}</span>`,iconSize:[0,0]})}).on('click',()=>stationSheet(s.n)).addTo(grp);
+function stationSheet(n){if(!ST[n])return;const s=ST[n];sheet(`<h3>${n}駅</h3><div class="row"><span class="badge">${code(n)}</span><small>${s.lines.map(l=>LN[l].name).join(' / ')}</small></div>`+(CS==='plan'&&n!==S.cur?'<button class="pill" id="sd">ここを到着駅にする</button>':CS==='home'?'<button class="pill" id="sd">ここを出発駅にする</button>':''));const b=$('sd');if(b)b.onclick=()=>{closeSheet();if(CS==='plan')pickDest(n);else{S.cur=n;save();home()}}}
+function svgDraw(){
+  if($('svg').style.display==='none')return;
+  const{a,b,tr,q}=V,fol=tr&&q&&tr.follow;let vb=[0,0,SW,SH];
+  if(fol)vb=[X(q.lng)-80,Y(q.lat)-80,160,160];
+  else if(a){const Q=b?[a,b]:[a],xs=Q.map(s=>X(s.lng)),ys=Q.map(s=>Y(s.lat)),w=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys),120)*1.7;vb=[(Math.min(...xs)+Math.max(...xs))/2-w/2,(Math.min(...ys)+Math.max(...ys))/2-w/2,w,w]}
+  const fs=vb[2]/26;let s='';
+  for(const id in LN)s+=`<polyline points="${LN[id].st.map(n=>X(ST[n].lng).toFixed(0)+','+Y(ST[n].lat).toFixed(0)).join(' ')}" fill="none" stroke="${LN[id].color}" stroke-width="${fs/5}" opacity=".6"/>`;
+  if(V.rad&&a)s+=`<circle cx="${X(a.lng)}" cy="${Y(a.lat)}" r="${V.rad*9}" fill="#ffffff1a" stroke="#fff8" stroke-width="${fs/8}"/>`;
+  const pt=(t,c)=>`<circle cx="${X(t.lng)}" cy="${Y(t.lat)}" r="${fs/2.5}" fill="${c}"/><text x="${X(t.lng)+fs/1.5}" y="${Y(t.lat)-fs/1.5}" fill="#fff" font-size="${fs}" font-weight="700" stroke="#000" stroke-width="${fs/5}" paint-order="stroke">${t.n}</text>`;
+  if(tr&&q){
+    s+=`<polyline points="${tr.pts.map(c=>X(c[1]).toFixed(0)+','+Y(c[0]).toFixed(0)).join(' ')}" fill="none" stroke="#ffd84a" stroke-width="${fs/3}"/>`+tr.si.map(i=>`<circle cx="${X(tr.pts[i][1])}" cy="${Y(tr.pts[i][0])}" r="${fs/4}" fill="#05070d" stroke="#fff" stroke-width="${fs/8}"/>`).join('')+pt(a,'#ffd84a')+pt(b,'#38d6ff');
+    if(fol)s=`<g transform="rotate(${tr.rot} ${X(q.lng)} ${Y(q.lat)})">${s}</g><rect x="${X(q.lng)-fs/2.5}" y="${Y(q.lat)-fs}" width="${fs/1.25}" height="${fs*2}" rx="${fs/3}" fill="#fff" stroke="#0055aa" stroke-width="${fs/6}"/>`;
+    else s+=`<circle cx="${X(q.lng)}" cy="${Y(q.lat)}" r="${fs/2}" fill="#fff" stroke="#0055aa" stroke-width="${fs/4}"/>`;
+  }else{
+    if(a)s+=pt(a,'#ffd84a');
+    if(b)s+=`<line x1="${X(a.lng)}" y1="${Y(a.lat)}" x2="${X(b.lng)}" y2="${Y(b.lat)}" stroke="#fff" stroke-width="${fs/4}" stroke-dasharray="${fs/4} ${fs/2}"/>`+pt(b,'#38d6ff');
+  }
+  $('svg').setAttribute('viewBox',vb.join(' '));$('svg').innerHTML=s;
+}
+function draw(fit){
+  svgDraw();if(!map)return;grp.clearLayers();const{a,b,tr,q}=V;
+  if(V.rad&&a)L.circle(ll(a),{radius:V.rad*1000,color:'#fff',weight:1,opacity:.6,fillColor:'#fff',fillOpacity:.1}).addTo(grp);
+  if(tr&&q){
+    L.polyline([[q.lat,q.lng],...tr.pts.slice(q.j)],{color:'#fff',weight:4,dashArray:'2 8',opacity:.8}).addTo(grp);
+    L.polyline([...tr.pts.slice(0,q.j),[q.lat,q.lng]],{color:'#ffd84a',weight:5}).addTo(grp);
+    tr.si.forEach((k,i)=>L.circleMarker(tr.pts[k],{radius:tr.stops[i]?5:3,color:'#fff',weight:2,fillColor:tr.stops[i]?'#05070d':'#fff',fillOpacity:1,interactive:false}).addTo(grp));
+    mk(a,tr.pts[0]);mk(b,tr.pts[tr.pts.length-1]);
+    L.marker([q.lat,q.lng],{icon:L.divIcon({className:'',html:`<div class="trn" style="transform:rotate(${tr.follow?0:q.b}deg)"></div>`,iconSize:[0,0]}),interactive:false}).addTo(grp);
+    if(tr.follow){map.setView([q.lat,q.lng],tr.z||15,{animate:false});$('mapw').style.setProperty('--rot',tr.rot+'deg')}
+    else if(fit)map.fitBounds(tr.pts,{padding:[60,60],animate:false});
+    return}
+  if(a)mk(a);
+  if(b){L.polyline([ll(a),ll(b)],{color:'#fff',weight:3,dashArray:'2 9'}).addTo(grp);mk(b)}
+  if(fit&&!V.user){if(a&&b)map.fitBounds([ll(a),ll(b)],{paddingTopLeft:[40,90],paddingBottomRight:[40,V.pad],maxZoom:13,animate:false});else if(a)map.setView(ll(a),12,{animate:false})}
+}
+(function(){const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+ sc.onload=()=>{try{map=L.map('map',{zoomControl:false,attributionControl:false}).setView([35.7,139.6],10);
+    grp=L.layerGroup().addTo(map);map.on('dragstart',()=>{V.user=1});setTile();draw(true)}catch(e){map=null}};sc.onerror=()=>mapNote('地図ライブラリを読み込めないため、簡易地図で表示しています。通信を確認するか、プレビューではなくSafari/Chromeでファイルを直接開いてください。(タップで閉じる)');document.head.appendChild(sc)})();
+
+// ===== オンボーディング =====
+const OB=[['ようこそ！'+ic('train',16),'深い集中への旅は<br>ここから始まります。','こんにちは！'],['気が散ることが','ありますか？','はい'],['集中できない','と感じることが<br>よくありますか','集中するには？'],['それが私たちが','FocusTrain','始めましょう！']];
+let oi=0;
+function obShow(){const[s,b,t]=OB[oi];$('ob').innerHTML=`<div class="obw"><div class="dots">${OB.map((_,i)=>`<i class="${i<=oi?'f':''}"></i>`).join('')}</div><div class="obt"><small>${s}</small><div class="big ${oi===OB.length-1?'glow':''}">${b}</div>${oi===OB.length-1?'<small>FocusTrainは、集中を旅に変え、あなたを深い集中へ導きます。</small>':''}</div><button class="pill" id="obn">${t}</button></div>`;
+  $('obn').onclick=()=>{if(++oi<OB.length)obShow();else{S.ob=true;save();boot()}}}
+
+// ===== 駅検索シート =====
+function pickSheet(title,onPick){
+  sheet(`<h3>${title}</h3><input id="q" placeholder="駅名を検索(例: 池袋)" autocomplete="off"><div id="res"></div>`);
+  const q=$('q'),res=$('res');
+  const render=()=>{const v=q.value.trim();res.innerHTML=Object.keys(ST).filter(n=>!v||n.includes(v)).slice(0,40).map(n=>`<div class="row" data-n="${n}"><span class="badge">${code(n)}</span><div><b>${n}</b><small>${ST[n].lines.map(l=>LN[l].name).join(' / ')}</small></div></div>`).join('')||'<p class="dim">該当する駅がありません</p>'};
+  q.oninput=render;res.onclick=e=>{const r=e.target.closest('.row');if(r)onPick(r.dataset.n)};render();
+}
+function pickStart(){
+  pickSheet('始める駅を選択',n=>{V={a:ST[n],b:null,p:0,pad:260};draw(true);
+    sheet(`<h3>ここから始めますか？</h3><p class="dim" style="text-align:center">出発駅は、あとから設定で変更できます。</p><div class="row" style="justify-content:center"><span class="badge">${code(n)}</span><b>${n}</b></div><button class="pill" id="ok">確認</button><button class="pill dark" id="cn">キャンセル</button>`);
+    $('ok').onclick=()=>{S.cur=n;save();home()};$('cn').onclick=pickStart})
+}
+
+// ===== ホーム =====
+function boot(){if(!ST[S.cur])S.cur=null;if(!S.cur){go('home');$('hname').textContent='';$('greet').textContent='';$('hcode').textContent='';V={a:null,b:null,p:0,pad:0};draw(true);pickStart()}else home()}
+function home(){V={a:ST[S.cur],b:null,p:0,pad:0};draw(true);go('home');const h=new Date().getHours();
+  $('greet').textContent=h<11?'おはようございます！':h<18?'こんにちは！':'こんばんは！';$('hname').textContent=S.cur;$('hcode').textContent=code(S.cur);homeStats()}
+function homeStats(){const ok=S.hist.filter(h=>h.ok),km=ok.reduce((s,h)=>s+h.km,0),mn=ok.reduce((s,h)=>s+h.min,0),pc=km/EARTH*100;
+  $('hkm').textContent=km.toFixed(0)+' km';$('hearth').style.width=Math.min(100,pc)+'%';$('hearthl').textContent='地球一周 '+pc.toFixed(2)+'%';$('hcnt').textContent=ok.length+'回';$('hmin').textContent='累計 '+mn+'分'}
+$('start').onclick=()=>S.cur?plan():pickStart();
+$('mh').onclick=()=>sheet('<h3>履歴</h3>'+(S.hist.slice(-30).reverse().map(h=>`<div class="row"><div style="flex:1"><b>${h.f} → ${h.to}</b><small>${new Date(h.t).toLocaleDateString('ja-JP')} ・ ${h.mode} ・ ${h.km.toFixed(1)} km${h.note?' ・ '+h.note.replace(/[<>&]/g,''):''}</small></div><span style="color:${h.ok?'#5ef2a0':'#ff6b6b'}">${h.ok?h.min+'分':'失敗 '+h.done+'/'+h.min}</span></div>`).join('')||'<p class="dim" style="text-align:center">まだ運行がありません</p>'));
+$('mt').onclick=()=>{const ok=S.hist.filter(h=>h.ok),km=ok.reduce((s,h)=>s+h.km,0),mn=ok.reduce((s,h)=>s+h.min,0),c={};ok.forEach(h=>c[h.mode]=(c[h.mode]||0)+1);const mx=Math.max(1,...Object.values(c));
+  sheet(`<h3>トレンド</h3><div class="stats"><div><small>完走</small><b>${ok.length}回</b></div><div><small>累計距離</small><b>${km.toFixed(0)} km</b></div><div><small>累計時間</small><b>${Math.floor(mn/60)}時間${mn%60}分</b></div><div><small>地球一周</small><b>${(km/EARTH).toFixed(3)}×</b></div></div>`+MODES.map(([n,e])=>`<div class="brow"><span>${ic(e,14)} ${n}</span><i style="width:${(c[n]||0)/mx*60}%"></i><em>${c[n]||0}</em></div>`).join(''))};
+$('ms').onclick=settings;
+function settings(){
+  sheet(`<h3>設定</h3><small>地図のスタイル</small><div class="styles">${Object.entries(TILES).map(([k,v])=>`<button data-s="${k}" class="${k===S.style?'sel':''}">${v[1]}</button>`).join('')}</div><label class="row"><input type="checkbox" id="snd" ${S.sound?'checked':''}> 到着音を鳴らす</label><button class="pill dark" id="cds">カードの種類</button><button class="pill dark" id="chg">出発駅を変更</button><button class="pill dark" id="rst">データを削除</button>`);
+  document.querySelectorAll('.styles button').forEach(b=>b.onclick=()=>{S.style=b.dataset.s;save();setTile();settings()});
+  $('snd').onchange=e=>{S.sound=e.target.checked;save()};
+  $('cds').onclick=cardSheet;$('chg').onclick=()=>pickSheet('出発駅を変更',n=>{S.cur=n;save();home()});
+  $('rst').onclick=()=>{if(confirm('履歴と設定をすべて削除します。よろしいですか?')){try{localStorage.removeItem('ft2')}catch(e){}location.reload()}};
+}
+
+// ===== 運行の予約 =====
+let P={min:30,dest:null,mode:'執筆'};
+function plan(){go('plan');P.dest=null;pRender()}
+function pRender(){
+  const a=ST[S.cur];let c=Object.values(ST).filter(s=>s!==a).map(s=>({s,m:mins(a,s)}));
+  c.sort((x,y)=>Math.abs(x.m-P.min)-Math.abs(y.m-P.min));c=c.slice(0,10);
+  if(P.dest&&!c.find(x=>x.s.n===P.dest))c.unshift({s:ST[P.dest],m:mins(a,ST[P.dest])});
+  if(!P.dest)P.dest=c[0].s.n;
+  const d=ST[P.dest];$('tmin').textContent=mins(a,d);$('pkm').textContent=hav(a,d).toFixed(1)+' km';$('pdest').textContent=d.n+' まで';V={a,b:d,p:0,pad:400,rad:mins(a,d)/RATE,user:V.user};draw(true);
+  $('types').innerHTML=Object.entries(TYPES).map(([k,v])=>`<button data-t="${k}" class="${k===S.type?'sel':''}">${v[0]}</button>`).join('')+`<small style="margin-left:6px">約${Math.round(60/RATE)}km/h</small>`;
+  $('cards').innerHTML=c.map(x=>`<div class="card ${x.s.n===P.dest?'sel':''}" data-n="${x.s.n}"><span class="badge">${code(x.s.n)}</span><b>${x.s.n}</b><small>${x.m}分 ・ ${hav(a,x.s).toFixed(1)}km</small></div>`).join('');
+}
+function pickDest(n){P.dest=n;P.min=Math.min(180,mins(ST[S.cur],ST[n]));$('rng').value=P.min;pRender()}
+$('rng').oninput=e=>{P.min=+e.target.value;P.dest=null;pRender()};
+$('cards').onclick=e=>{const c=e.target.closest('.card');if(c)pickDest(c.dataset.n)};
+$('types').onclick=e=>{const k=e.target.dataset&&e.target.dataset.t;if(k){S.type=k;RATE=TYPES[k][1];if(P.dest)P.min=Math.min(180,mins(ST[S.cur],ST[P.dest]));save();pRender()}};
+$('chips').onclick=e=>{if(e.target.dataset.m){P.mode=e.target.dataset.m;seatPaint()}};
+$('psearch').onclick=()=>pickSheet('到着駅を検索',n=>{if(n===S.cur)return;closeSheet();pickDest(n)});
+$('pback').onclick=home;
+
+// ===== 線路経路(駅の隣接グラフ上の最短経路) =====
+const ADJ={};for(const id in LN){const st=LN[id].st;for(let i=0;i+1<st.length;i++){const a=st[i],b=st[i+1],d=hav(ST[a],ST[b]);(ADJ[a]=ADJ[a]||[]).push([b,d,id]);(ADJ[b]=ADJ[b]||[]).push([a,d,id])}}
+function railPath(a,b){const D={[a]:0},prev={},Q=[a],dn=new Set();
+  while(Q.length){Q.sort((x,y)=>D[x]-D[y]);const u=Q.shift();if(dn.has(u))continue;dn.add(u);if(u===b)break;for(const[v,d,l]of ADJ[u]||[])if(D[v]===undefined||D[u]+d<D[v]){D[v]=D[u]+d;prev[v]=[u,l];Q.push(v)}}
+  if(D[b]===undefined)return null;const p=[b],L=[];while(p[0]!==a){const[u,l]=prev[p[0]];p.unshift(u);L.unshift(l)}return{names:p,lines:L}}
+const stopsOf=(n,ty)=>n.map((s,i)=>ty==='local'||ty===undefined||i===0||i===n.length-1||(ty==='rapid'?(ST[s].lines.length>1||i%3===0):ST[s].lines.length>1));
+// 実際の線路形状: OpenStreetMapをOverpass APIから取得し、駅間を線路データ上の最短経路でつなぐ(取得できない区間は直線)
+const JRX=/東日本旅客鉄道|JR East|JR東日本/,MET=/東京地下鉄|東京メトロ|Tokyo Metro/;
+const OPR={tojo:/東武/,ogose:/東武/,fuku:MET,yuraku:MET,toyoko:/東急|Tokyu/,mm:/横浜高速|Minatomirai/,jy:JRX,jc:JRX,jk:JRX,jne:JRX,jt:JRX,jyo:JRX,jss:JRX,jyk:JRX};
+const OVP=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
+async function ovp(q){for(const u of OVP){try{const c=new AbortController(),to=setTimeout(()=>c.abort(),30000);const r=await fetch(u,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'},signal:c.signal});clearTimeout(to);if(r.ok)return await r.json()}catch(e){}}return null}
+async function loadRail(names,prog){
+  const W=new Map(),SN=[],ch=[];for(let i=0;i<names.length-1;i+=6)ch.push(names.slice(i,i+7));
+  for(let c=0;c<ch.length;c++){prog&&prog(c+1,ch.length);const ps=ch[c].map(n=>ST[n]),m=.012,s=Math.min(...ps.map(x=>x.lat))-m,n=Math.max(...ps.map(x=>x.lat))+m,w=Math.min(...ps.map(x=>x.lng))-m,e=Math.max(...ps.map(x=>x.lng))+m;
+    const j=await ovp(`[out:json][timeout:25];(way["railway"~"^(rail|subway|light_rail)$"][!"service"](${s},${w},${n},${e});node["railway"="station"]["name"](${s},${w},${n},${e}););out geom;`);
+    if(!j)continue;for(const el of j.elements){if(el.type==='way'&&el.geometry&&el.nodes)W.set(el.id,el);else if(el.type==='node'&&el.tags)SN.push(el)}}
+  return W.size?{W,SN,G:{}}:null}
+const hv=(a,b)=>hav({lat:a.lat,lng:a.lon},{lat:b.lat,lng:b.lon});
+function graph(D,lid){if(D.G[lid])return D.G[lid];const re=OPR[lid],adj=new Map(),nc=new Map(),ad=(a,b,d)=>{(adj.get(a)||adj.set(a,[]).get(a)).push([b,d])};
+  for(const w of D.W.values()){const op=(w.tags&&w.tags.operator)||'';if(re&&op&&!re.test(op))continue;const n=w.nodes,g=w.geometry;for(let i=0;i<n.length;i++){nc.set(n[i],g[i]);if(i){const d=hv(g[i-1],g[i]);ad(n[i-1],n[i],d);ad(n[i],n[i-1],d)}}}
+  return D.G[lid]={adj,nc}}
+function nearNode(G,p){let b=null,bd=1e9;for(const[id,c]of G.nc){const d=(c.lat-p[0])**2+((c.lon-p[1])*.82)**2;if(d<bd){bd=d;b=id}}return bd<4.5e-5?b:null}
+function dij(G,s,t){const dist=new Map([[s,0]]),prev=new Map(),h=[[0,s]];
+  const push=x=>{h.push(x);let i=h.length-1;while(i>0){const p=(i-1)>>1;if(h[p][0]<=h[i][0])break;[h[p],h[i]]=[h[i],h[p]];i=p}};
+  const pop=()=>{const top=h[0],l=h.pop();if(h.length){h[0]=l;let i=0;for(;;){const a=2*i+1,b=a+1;let m=i;if(a<h.length&&h[a][0]<h[m][0])m=a;if(b<h.length&&h[b][0]<h[m][0])m=b;if(m===i)break;[h[m],h[i]]=[h[i],h[m]];i=m}}return top};
+  while(h.length){const[d,u]=pop();if(u===t)break;if(d>dist.get(u))continue;for(const[v,w]of G.adj.get(u)||[]){const nd=d+w;if(nd<(dist.has(v)?dist.get(v):1e18)){dist.set(v,nd);prev.set(v,u);push([nd,v])}}}
+  if(!dist.has(t))return null;const p=[t];while(p[0]!==s)p.unshift(prev.get(p[0]));return p}
+const plen=a=>{let s=0;for(let i=1;i<a.length;i++)s+=hav({lat:a[i-1][0],lng:a[i-1][1]},{lat:a[i][0],lng:a[i][1]});return s};
+function segTrack(D,lid,p1,p2){for(const L of[lid,null]){const G=graph(D,L),s=nearNode(G,p1),t=nearNode(G,p2);if(s==null||t==null||s===t)continue;const p=dij(G,s,t);if(!p)continue;const pts=p.map(id=>{const c=G.nc.get(id);return[c.lat,c.lon]});if(plen(pts)>3*hav({lat:p1[0],lng:p1[1]},{lat:p2[0],lng:p2[1]})+1)continue;return pts}return null}
+async function buildTrack(names,segL,prog){
+  const D=await loadRail(names,prog);
+  const SP=names.map(n=>{const s=ST[n];let b=null,bd=1.2;if(D)for(const e of D.SN){if(e.tags.name===n){const d=hav(s,{lat:e.lat,lng:e.lon});if(d<bd){bd=d;b=[e.lat,e.lon]}}}return b||[s.lat,s.lng]});
+  const pts=[],si=[];let real=0;
+  for(let k=0;k<names.length;k++){if(k){const seg=D&&segTrack(D,segL[k-1],SP[k-1],SP[k]);if(seg){real++;seg.forEach(c=>pts.push(c))}}pts.push(SP[k]);si.push(pts.length-1)}
+  return{pts,si,real,segs:names.length-1}}
+function pos(tr,p){const d=p*tr.len;let j=1;while(j<tr.cum.length-1&&tr.cum[j]<d)j++;const a=tr.pts[j-1],b=tr.pts[j],s=(tr.cum[j]-tr.cum[j-1])||1,f=Math.min(1,Math.max(0,(d-tr.cum[j-1])/s));let i=0;while(i<tr.sc.length-1&&tr.sc[i]<=d)i++;
+  return{lat:a[0]+(b[0]-a[0])*f,lng:a[1]+(b[1]-a[1])*f,b:Math.atan2((b[1]-a[1])*Math.cos(a[0]*Math.PI/180),b[0]-a[0])*180/Math.PI,i,j}}
+
+// ===== 座席 → 乗車券 → 改札 → 発車 =====
+const hs=i=>{const x=Math.sin(i*127.1)*43758.5453;return x-Math.floor(x)};
+let T=null;
+$('book').onclick=()=>{try{AC=AC||new(window.AudioContext||window.webkitAudioContext)()}catch(e){}P.car=1+Math.floor(Math.random()*10);P.seat=null;seatOpen()};
+function seatOpen(){go('seat');let h='';
+  for(let r=1;r<=8;r++)for(const c of['A','B','','C','D']){if(!c){h+='<i></i>';continue}const id=String(r).padStart(2,'0')+c,x=hs(P.car*97+r*7+c.charCodeAt(0))>.72;if(!x&&!P.seat)P.seat=id;h+=`<button class="st" data-s="${id}"${x?' disabled':''}>${id}</button>`}
+  $('smap').innerHTML=h;seatPaint()}
+function seatPaint(){document.querySelectorAll('.st').forEach(b=>b.classList.toggle('sel',b.dataset.s===P.seat));
+  $('slab').textContent=`座席: ${P.car}号車 ${P.seat}　何を集中したいですか?`;
+  $('chips').innerHTML=MODES.map(([n,e])=>`<button data-m="${n}" class="${n===P.mode?'sel':''}">${ic(e,16)} ${n}</button>`).join('')}
+$('smap').onclick=e=>{const s=e.target.dataset&&e.target.dataset.s;if(s&&!e.target.disabled){P.seat=s;seatPaint()}};
+$('sback').onclick=plan;
+$('issue').onclick=()=>{const a=ST[S.cur],b=ST[P.dest];T={t:Date.now(),f:a.n,to:b.n,km:hav(a,b),min:mins(a,b),mode:P.mode,seat:P.car+'号車 '+P.seat,type:S.type,ok:true,done:0,note:''};showTicket(T,true)};
+function showTicket(h,pre){
+  $('astat').textContent=pre?'乗車券':h.ok?'乗車券 ・ 到着':'乗車券 ・ 途中下車(運行失敗)';$('astat').style.color=(!pre&&!h.ok)?'#d33':'';
+  $('ac1').innerHTML=`<small>${code(h.f)}</small>${h.f}`;$('ac2').innerHTML=`<small>${code(h.to)}</small>${h.to}`;
+  $('aseat').textContent=h.seat||'-';$('atype').textContent=(TYPES[h.type]||TYPES.local)[0];$('acard').innerHTML=cardSVG(S.card,'a',h);$('akm').textContent=h.km.toFixed(1)+' km';$('amin').textContent=(!pre&&!h.ok)?`${h.done}分 / ${h.min}分`:h.min+'分';
+  $('adt').textContent=new Date(h.t).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});$('amode').textContent=h.mode;
+  $('note').style.display=pre?'none':'';$('note').value='';$('aback').style.display=pre?'':'none';$('next').textContent=pre?'改札へ':'次の運行へ';$('next').dataset.k=pre?'pre':'arr';go('arr')}
+$('aback').onclick=seatOpen;
+$('next').onclick=()=>{if($('next').dataset.k==='pre')return gateOpen('in',T.f,()=>boardStart());if(LH){LH.note=$('note').value.slice(0,80);save()}home()};
+// ===== ホームで待つ → 電車が来る → 乗る → 発車 =====
+let PL=null;const pc=$('pc'),px=pc.getContext&&pc.getContext('2d');
+function boardStart(){const a=ST[T.f],b=ST[T.to],rp=railPath(a.n,b.n)||{names:[a.n,b.n],lines:[null]};
+  PL={t0:Date.now(),rp,ready:0,fl:{},trk:null,prog:'',done:false};go('plat');ensureAC();
+  buildTrack(rp.names,rp.lines,(c,n)=>{PL.prog=` ・線路データ取得 ${c}/${n}`}).then(r=>{PL.trk=r;PL.ready=1}).catch(()=>{PL.ready=1});platLoop()}
+function platLoop(){if(!PL||PL.done)return;requestAnimationFrame(platLoop);const t=(Date.now()-PL.t0)/1000;drawPlat(t);
+  const ty=(TYPES[T.type]||TYPES.local)[0],dest=PL.rp.names[PL.rp.names.length-1];
+  $('pcap').textContent=(t<1?`${T.f}駅 ホームで電車をお待ちください`:t<6.5?`まもなく ${ty} ${dest}行きが参ります`:t<8.5?'電車が到着しました':t<11.5?'ご乗車ください':t<13?'ドアが閉まります':'発車します')+(t>13&&!PL.ready?PL.prog:'');
+  if(t>1&&!PL.fl.a){PL.fl.a=1;tones([[784,0,.4],[659,.4,.6]])}if(t>7&&!PL.fl.b){PL.fl.b=1;chime()}if(t>11.5&&!PL.fl.c){PL.fl.c=1;chime()}
+  if(t>15&&PL.ready)endBoard()}
+function drawPlat(t){
+  const W=pc.clientWidth,H=pc.clientHeight;if(pc.width!==W||pc.height!==H){pc.width=W;pc.height=H}
+  const hr=new Date().getHours(),m=(hr<5||hr>=19)?0:(hr>=17?1:2),SK=[['#02030a','#14204a'],['#3b2a73','#ff9a62'],['#6ab4ff','#dff0ff']][m];
+  const g=px.createLinearGradient(0,0,0,H*.6);g.addColorStop(0,SK[0]);g.addColorStop(1,SK[1]);px.fillStyle=g;px.fillRect(0,0,W,H);
+  px.fillStyle=['#0a1124','#3a2f55','#8aa0c4'][m];for(let i=0;i<14;i++){const h=40+hs(i)*110;px.fillRect(i*W/12-10,H*.5-h,W/12-4,h)}
+  const gy=H*.68,col=(PL.rp.lines[0]&&LN[PL.rp.lines[0]])?LN[PL.rp.lines[0]].color:'#0055aa';
+  px.fillStyle='#8b919d';px.fillRect(0,gy,W,H);px.fillStyle='#ffd84a';px.fillRect(0,gy+H*.03,W,6);px.fillStyle='#575d69';px.fillRect(0,gy-4,W,6);
+  const Bw=W*2.4,u=Math.min(1,Math.max(0,(t-1)/5.5));let L=W*1.3*Math.pow(1-u,3);if(t>12.5)L-=Math.pow(t-12.5,2)*W*.45;
+  const top=H*.3,bh=gy-top-6,open=t<7?0:t<8.5?(t-7)/1.5:t<11.5?1:t<12.5?1-(t-11.5):0;
+  px.fillStyle='#d3d8e0';px.fillRect(L,top,Bw,bh);px.fillStyle=col;px.fillRect(L,top+bh*.55,Bw,bh*.08);px.fillStyle='#2c313c';px.fillRect(L,top+bh*.95,Bw,bh*.05);
+  for(let k=0;k<6;k++){const dx=L+W*(.3+k*.36),dw=W*.14,lw=dw/2*(1-open*.95);
+    px.fillStyle=open>0?'#fff3c9':'#3a4a66';px.fillRect(dx-dw/2,top+bh*.12,dw,bh*.8);px.fillStyle='#c4cad4';px.fillRect(dx-dw/2,top+bh*.12,lw,bh*.8);px.fillRect(dx+dw/2-lw,top+bh*.12,lw,bh*.8);
+    px.fillStyle='#233048';px.fillRect(dx-dw/2+4,top+bh*.18,Math.max(0,lw-8),bh*.3);px.fillRect(dx+dw/2-lw+4,top+bh*.18,Math.max(0,lw-8),bh*.3);px.fillStyle='#1b2740';px.fillRect(dx+dw/2+W*.03,top+bh*.18,W*.14,bh*.32)}
+  const walk=(x0,x1,ts,te,c)=>{if(t<ts||t>te)return;const v=(t-ts)/(te-ts),x=x0+(x1-x0)*v,y=gy+H*.02,s=Math.sin(t*12)*3;px.fillStyle=c;px.beginPath();px.arc(x,y-46,7,0,7);px.fill();px.fillRect(x-7,y-38,14,30);px.fillRect(x-7,y-8,6,18+s);px.fillRect(x+1,y-8,6,18-s)};
+  walk(W*.05,W*.3,8.5,9.6,'#8b93a8');walk(0,W*.3,9.2,10.3,'#a5adc0');walk(W*.12,W*.66,8.8,10.6,'#38d6ff');
+  px.fillStyle='#0055aa';px.fillRect(W*.78,gy-175,W*.2,52);px.fillStyle='#fff';px.font='bold 18px sans-serif';px.textAlign='center';px.fillText(T.f,W*.88,gy-142);px.font='11px sans-serif';px.fillText(code(T.f),W*.88,gy-128);px.textAlign='left';
+  px.fillStyle='#1d2029';px.fillRect(W*.86,gy-122,6,122)}
+$('pskip').onclick=()=>{if(PL)PL.t0-=20000};
+function endBoard(){PL.done=true;const a=ST[T.f],b=ST[T.to],rp=PL.rp,k=PL.trk||{pts:rp.names.map(n=>[ST[n].lat,ST[n].lng]),si:rp.names.map((_,i)=>i),real:0,segs:rp.names.length-1},pts=k.pts,cum=[0];
+  for(let i=1;i<pts.length;i++)cum.push(cum[i-1]+hav({lat:pts[i-1][0],lng:pts[i-1][1]},{lat:pts[i][0],lng:pts[i][1]}));
+  F=Object.assign({},T,{a,b,names:rp.names,segL:rp.lines,pts,si:k.si,cum,sc:k.si.map(i=>cum[i]),len:cum[cum.length-1]||1,stops:stopsOf(rp.names,T.type),real:k.real,t0:Date.now(),pause:0,pa:0,follow:true,rot:0,z:15});
+  V={a,b,p:0,pad:0,tr:F,q:null};go('fly');layoutMap(true);map&&map.dragging&&map.dragging.disable();
+  $('fmode').innerHTML=ic((MODES.find(m=>m[0]===F.mode)||[0,'pen'])[1],20);tick();F.iv=setInterval(tick,250);winOn();
+  if(!k.real)mapNote('実際の線路データを取得できなかったため、駅どうしを直線でつないでいます。通信を確認してください。');else if(k.real<k.segs)mapNote(`線路データは ${k.real}/${k.segs} 区間で取得できました。残りは直線です。`);else $('attr').textContent+=' ・ 線路: © OpenStreetMap contributors';
+  try{navigator.wakeLock&&navigator.wakeLock.request('screen').then(w=>{F&&(F.wl=w)}).catch(()=>{})}catch(e){}}
+
+// ===== 乗車中 =====
+function layoutMap(on){const w=$('app').clientWidth,h=$('app').clientHeight,m=$('mapw'),D=Math.hypot(w,h)*1.05;
+  if(on)Object.assign(m.style,{inset:'auto',width:D+'px',height:D+'px',left:(w-D)/2+'px',top:(h*.6-D/2)+'px'});else{m.removeAttribute('style')}
+  map&&map.invalidateSize()}
+const el=()=>(F.pa||Date.now())-F.t0-F.pause;
+function tick(){if(!F)return;const e=el(),tot=F.min*60000,p=Math.min(1,e/tot),r=Math.max(0,tot-e),q=pos(F,p);
+  let rr=-q.b;while(rr-F.rot>180)rr-=360;while(rr-F.rot<-180)rr+=360;F.rot=rr;V.p=p;V.q=q;
+  if(F.li!==q.i){if(F.li!==undefined)for(let k=F.li;k<q.i;k++){F.plat=F.names[k];F.pw=wx;F.pass=!F.stops[k];if(F.stops[k]&&k>0&&k<F.names.length-1&&F.segL[k-1]&&F.segL[k]&&F.segL[k-1]!==F.segL[k])showTransfer(F.names[k],F.segL[k-1],F.segL[k])}F.li=q.i}
+  draw(false);
+  $('frem').innerHTML=F.clk?new Date(F.t0+tot+F.pause).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})+' <small>着</small>':(r>=60000?Math.ceil(r/60000)+' <small>min</small>':Math.ceil(r/1000)+' <small>sec</small>');
+  const rk=F.len*(1-p);$('fkm').innerHTML=rk.toFixed(rk<10?1:0)+' <small>km</small>';
+  let k=q.i;while(k<F.names.length-1&&!F.stops[k])k++;
+  $('fnext').textContent=F.stops[q.i]?'次は '+F.names[q.i]:'通過 '+F.names[q.i]+' → 次は '+F.names[k];
+  if(e>=tot)endFly(true)}
+$('fpause').onclick=()=>{if(!F||F.pa)return;F.pa=Date.now();sheet('<h3>一時停止中</h3><button class="pill" id="kp">再開</button><button class="pill dark" id="kq">やめる</button>',()=>{if(F&&F.pa){F.pause+=Date.now()-F.pa;F.pa=0}});
+  $('kp').onclick=()=>{F.pause+=Date.now()-F.pa;F.pa=0;closeSheet()};$('kq').onclick=()=>{if(F.pa){F.pause+=Date.now()-F.pa;F.pa=0}endFly(false)}};
+$('bfit').onclick=()=>{if(!F)return;F.follow=false;layoutMap(false);map&&map.dragging.enable();$('mapw').style.setProperty('--rot','0deg');draw(true)};
+$('bfol').onclick=()=>{if(!F)return;F.follow=true;layoutMap(true);map&&map.dragging.disable();draw(true)};
+$('bsty').onclick=()=>{const k=Object.keys(TILES);S.style=k[(k.indexOf(S.style)+1)%k.length];save();setTile()};
+$('bwin').onclick=()=>{const c=$('win');c.classList.toggle('on');if(c.classList.contains('on'))requestAnimationFrame(winLoop)};
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&F)tick()});
+function endFly(ok){$('xfer').style.display='none';map&&map.dragging&&map.dragging.enable();
+  const e=Math.min(el(),F.min*60000);clearInterval(F.iv);try{F.wl&&F.wl.release()}catch(x){}
+  const gs=ok?F.to:F.names[Math.max(0,(V.q?V.q.i:1)-1)];LH={t:Date.now(),f:F.f,to:F.to,km:F.km,min:F.min,done:Math.floor(e/60000),ok,mode:F.mode,seat:F.seat,type:F.type,note:''};
+  S.hist.push(LH);S.hist=S.hist.slice(-300);if(ok)S.cur=F.to;save();F=null;V.tr=null;V.q=null;
+  $('win').classList.remove('on');layoutMap(false);$('mapw').style.setProperty('--rot','0deg');beep(ok);navigator.vibrate&&navigator.vibrate(ok?[200,100,200]:400);gateOpen('out',gs,()=>showTicket(LH,false))}
+
+// ===== Suica風カード(ペンギンは自作の簡易イラスト) =====
+const CARD='Suica';
+function suicaSVG(k){return `<svg viewBox="0 0 336 212" width="100%" style="display:block"><defs><linearGradient id="sg${k}" x1="0" y1="0" x2="1" y2=".4"><stop offset="0" stop-color="#bfc4cb"/><stop offset=".3" stop-color="#f6f7f9"/><stop offset=".55" stop-color="#d3d7dd"/><stop offset=".8" stop-color="#f1f3f5"/><stop offset="1" stop-color="#bcc1c8"/></linearGradient></defs>
+<rect width="336" height="212" rx="16" fill="url(#sg${k})"/><path d="M10 9h24" stroke="#333" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M20 24Q20 14 30 14H150Q157 14 160 21L226 192Q229 200 219 200H30Q20 200 20 190Z" fill="#8bbd5f"/>
+<text x="30" y="178" font-family="Arial Rounded MT Bold,Helvetica,Arial,sans-serif" font-weight="800" font-size="52" letter-spacing="3" fill="#fffbe8">${CARD}</text>
+<rect x="262" y="22" width="56" height="28" rx="14" fill="#8bbd5f"/><circle cx="262" cy="36" r="16" fill="#111"/><text x="274" y="41" font-size="13" font-weight="800" fill="#fff" font-family="Arial,sans-serif">${CARD}</text><circle cx="288" cy="58" r="4" fill="#8bbd5f"/><circle cx="299" cy="58" r="4" fill="#8bbd5f"/>
+<g transform="translate(262 116) rotate(-6)"><ellipse cx="0" cy="42" rx="24" ry="44" fill="#16181c"/><ellipse cx="-3" cy="44" rx="14" ry="32" fill="#fff"/><circle cx="-2" cy="-4" r="17" fill="#16181c"/>
+<circle cx="-8" cy="-6" r="3.6" fill="#fff"/><circle cx="3" cy="-6" r="3.6" fill="#fff"/><circle cx="-8" cy="-6" r="1.4" fill="#111"/><circle cx="3" cy="-6" r="1.4" fill="#111"/>
+<path d="M-9 2Q-3 8 4 2L-3 9Z" fill="#e8e8e8" stroke="#111" stroke-width="1"/><path d="M-20 20Q-44 6 -50 -2Q-42 -4 -30 6Z" fill="#16181c"/><path d="M18 24Q34 36 30 54Q22 40 14 32Z" fill="#16181c"/>
+<ellipse cx="-10" cy="88" rx="9" ry="4" fill="#16181c"/><ellipse cx="10" cy="86" rx="9" ry="4" fill="#16181c"/></g></svg>`}
+
+// ===== カード(Suica / FocusCard / きっぷ) =====
+const fare=h=>Math.round((150+Math.max(0,(h.km||0)-3)*17)/10)*10;
+function focusSVG(k){return `<svg viewBox="0 0 336 212" width="100%" style="display:block"><defs><linearGradient id="fg${k}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0a2a5a"/><stop offset=".55" stop-color="#0055aa"/><stop offset="1" stop-color="#38d6ff"/></linearGradient></defs>
+<rect width="336" height="212" rx="16" fill="url(#fg${k})"/><path d="M0 150Q90 108 180 140T336 98V212H0Z" fill="#ffffff1c"/><path d="M0 176Q100 140 200 168T336 132V212H0Z" fill="#ffffff14"/>
+<g fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" transform="translate(26 24)"><rect x="0" y="0" width="40" height="40" rx="10"/><path d="M0 24h40M10 52l6-12M30 52l-6-12"/><circle cx="10" cy="32" r="1.5" fill="#fff"/><circle cx="30" cy="32" r="1.5" fill="#fff"/></g>
+<text x="26" y="168" font-family="Helvetica,Arial,sans-serif" font-weight="800" font-size="38" fill="#fff" letter-spacing="1">FocusCard</text><text x="28" y="190" font-size="11" fill="#dff4ff" font-family="Helvetica,Arial,sans-serif" letter-spacing="3">IC  TRAIN FOCUS CARD</text>
+<g fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" transform="translate(286 34)"><path d="M0 0a14 14 0 000 28M8 4a9 9 0 000 20M16 8a5 5 0 000 12"/></g></svg>`}
+function ticketSVG(k,h){const d=new Date(h.t||Date.now()),ds=`${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
+  return `<svg viewBox="0 0 336 212" width="100%" style="display:block"><defs><linearGradient id="tg${k}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f8eddc"/><stop offset="1" stop-color="#ecdcc2"/></linearGradient></defs>
+<rect width="336" height="212" rx="6" fill="url(#tg${k})"/><rect width="336" height="24" rx="6" fill="#d9503f"/><text x="12" y="17" font-size="12" font-weight="700" fill="#fff" font-family="sans-serif">乗 車 券</text><text x="324" y="17" font-size="11" fill="#fff" text-anchor="end" font-family="sans-serif">${ds}</text>
+<text x="168" y="86" font-size="30" font-weight="800" text-anchor="middle" fill="#2a2118" font-family="sans-serif">${h.f||''}</text><text x="168" y="116" font-size="16" text-anchor="middle" fill="#8a6f4a">↓</text><text x="168" y="148" font-size="30" font-weight="800" text-anchor="middle" fill="#2a2118" font-family="sans-serif">${h.to||''}</text>
+<text x="14" y="188" font-size="13" fill="#5a4a36" font-family="sans-serif">${(h.km||0).toFixed(1)}km ・ 当日限り有効</text><text x="322" y="190" font-size="22" font-weight="800" text-anchor="end" fill="#2a2118" font-family="sans-serif">¥${fare(h)}</text><rect y="198" width="336" height="14" fill="#5b3b25" opacity=".85"/></svg>`}
+const cardSVG=(c,k,h)=>c==='focus'?focusSVG(k):c==='ticket'?ticketSVG(k,h||{}):suicaSVG(k);
+function cardSheet(){const h=T||{f:S.cur||'',to:'',km:10,t:Date.now()};
+  sheet('<h3>カードの種類</h3>'+[['suica','Suica','ICカード(タッチで通る)'],['focus','FocusCard','オリジナルICカード(タッチで通る)'],['ticket','きっぷ','紙の乗車券(改札に入れる)']].map(([k,n,s])=>`<div class="row cpk" data-k="${k}"><div style="width:128px;flex:none">${cardSVG(k,'p'+k,h)}</div><div><b>${n}</b><small>${s}${S.card===k?' ・ 選択中':''}</small></div></div>`).join(''))}
+$('sheet').addEventListener('click',e=>{const r=e.target.closest&&e.target.closest('.cpk');if(r){S.card=r.dataset.k;save();if(T)$('acard').innerHTML=cardSVG(S.card,'a',T);closeSheet()}});
+
+// ===== 改札(タッチ / きっぷ投入) =====
+let G={busy:0,cb:null,kind:'in'};
+function gateOpen(kind,name,cb){G={busy:0,cb,kind};const tk=S.card==='ticket';$('gkind').textContent=kind==='in'?'入場':'出場';$('gname').innerHTML=`<span class="badge">${code(name)}</span> ${name}駅`;
+  $('gback').style.display=kind==='in'?'':'none';['glamp','gpad','gar'].forEach(i=>$(i).classList.remove('ok','read'));$('gcard').className='gc idle';$('gcard').innerHTML=cardSVG(S.card,'g',T||{});
+  $('gfl').classList.remove('open');$('gfr').classList.remove('open');$('gdisp').textContent=tk?'きっぷを入れてください':'タッチしてください';$('gbtn').textContent=tk?'きっぷを入れる':'カードをタッチする';$('gbtn').disabled=false;go('gate')}
+function tones(a){if(!S.sound||!AC)return;try{a.forEach(([f,d,l,v])=>{const o=AC.createOscillator(),g=AC.createGain(),c=AC.currentTime+d;o.frequency.value=f;o.connect(g);g.connect(AC.destination);g.gain.setValueAtTime(v||.2,c);g.gain.exponentialRampToValueAtTime(.001,c+l);o.start(c);o.stop(c+l+.02)})}catch(e){}}
+const ping=()=>tones([[1760,0,.12],[2637,0,.05,.08]]),chime=()=>tones([[1319,0,.25],[988,.28,.4]]);
+function ensureAC(){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}
+function gOk(){['glamp','gpad','gar'].forEach(i=>$(i).classList.add('ok'));$('gpad').classList.remove('read');$('gdisp').textContent=(G.kind==='in'?'入場':'出場')+' OK';$('gfl').classList.add('open');$('gfr').classList.add('open')}
+function touchGate(){if(G.busy)return;G.busy=1;ensureAC();$('gbtn').disabled=true;const gc=$('gcard');
+  if(S.card==='ticket'){gc.className='gc tkin';setTimeout(()=>{gc.className='gc tkhide'},650);setTimeout(()=>{chime();navigator.vibrate&&navigator.vibrate(40);gOk();if(G.kind==='in')gc.className='gc tkout'},1150);if(G.kind==='in')setTimeout(()=>{gc.className='gc tkback'},1750)}
+  else{gc.className='gc go';setTimeout(()=>{gc.classList.add('tap');$('gpad').classList.add('read');$('gdisp').textContent='読み取り中…'},750);setTimeout(()=>{ping();navigator.vibrate&&navigator.vibrate(40);gOk()},1250)}
+  setTimeout(()=>{G.busy=0;G.cb&&G.cb()},2900)}
+$('gcard').onclick=$('gbtn').onclick=$('gpad').onclick=touchGate;$('gback').onclick=()=>showTicket(T,true);
+
+// ===== 乗り換え =====
+function showTransfer(n,la,lb){const x=$('xfer');$('xst').textContent=n+'駅';$('xa').textContent=LN[la].name;$('xb').textContent=LN[lb].name;x.style.setProperty('--xa',LN[la].color);x.style.setProperty('--xb',LN[lb].color);x.style.display='block';
+  const p=$('xp');p.style.animation='none';void p.offsetWidth;p.style.animation='walk 6s linear forwards';clearTimeout(F.xt);F.xt=setTimeout(()=>{x.style.display='none'},7500)}
+
+function winOn(){$('win').classList.add('on');requestAnimationFrame(winLoop)}
+function interior(W,H,y0,y1,t,mode){
+  const col=(F&&F.segL&&F.segL[0]&&LN[F.segL[0]])?LN[F.segL[0]].color:'#0055aa',g=cc.createLinearGradient(0,0,0,y0);g.addColorStop(0,'#e4e8ef');g.addColorStop(1,'#b9c0cc');cc.fillStyle=g;cc.fillRect(0,0,W,y0*.8);
+  cc.fillStyle='#fff';cc.fillRect(W*.1,y0*.16,W*.8,y0*.1);cc.strokeStyle='#8a93a3';cc.lineWidth=3;cc.beginPath();cc.moveTo(0,y0*.55);cc.lineTo(W,y0*.55);cc.stroke();
+  for(let i=0;i<6;i++){const x=W*(i+.5)/6,sw=Math.sin(t*.0035+i*1.3)*3*(.3+wv)+Math.sin(t*.011+i)*wv*1.5;cc.strokeStyle='#6c7586';cc.lineWidth=2;cc.beginPath();cc.moveTo(x,y0*.55);cc.lineTo(x+sw,y0*.55+22);cc.stroke();cc.strokeStyle='#f4a21b';cc.lineWidth=3;cc.beginPath();cc.arc(x+sw,y0*.55+32,10,0,7);cc.stroke()}
+  const sy=y1+24;cc.fillStyle=col;cc.globalAlpha=.55;cc.fillRect(0,sy,W,H);cc.globalAlpha=1;cc.fillStyle='#00000030';for(let i=0;i<8;i++)cc.fillRect(W*i/8,sy,2,H);cc.fillStyle='#ffffff18';cc.fillRect(0,sy,W,6);
+  const cx=W/2,by=H*.78;
+  if(mode==='執筆'||mode==='仕事'||mode==='計画'){cc.fillStyle='#1b2030';cc.fillRect(cx-W*.3,by+H*.07,W*.6,H*.05);cc.fillStyle='#0b1d3a';cc.fillRect(cx-W*.27,by-H*.04,W*.54,H*.11);cc.fillStyle='#38d6ff';for(let i=0;i<5;i++)cc.fillRect(cx-W*.24,by-H*.025+i*H*.017,W*(.1+hs(i+Math.floor(t/1500))*.3),3)}
+  else if(mode==='読書'||mode==='勉強'){cc.fillStyle='#f3efe4';cc.beginPath();cc.moveTo(cx,by-H*.03);cc.lineTo(cx-W*.26,by);cc.lineTo(cx-W*.26,by+H*.1);cc.lineTo(cx,by+H*.07);cc.fill();cc.beginPath();cc.moveTo(cx,by-H*.03);cc.lineTo(cx+W*.26,by);cc.lineTo(cx+W*.26,by+H*.1);cc.lineTo(cx,by+H*.07);cc.fill();cc.fillStyle='#9a9484';for(let i=0;i<5;i++){cc.fillRect(cx-W*.22,by+i*H*.016,W*.17,2);cc.fillRect(cx+W*.05,by+i*H*.016,W*.17,2)}}
+  else if(mode==='瞑想'){cc.fillStyle='#ffffff22';cc.beginPath();cc.arc(cx,by+H*.03,30+12*Math.sin(t*.002),0,7);cc.fill()}
+  else{cc.fillStyle='#10131c';cc.fillRect(cx-W*.14,by-H*.04,W*.28,H*.15);cc.fillStyle='#38d6ff';for(let i=0;i<8;i++){const h=10+Math.abs(Math.sin(t*.005+i))*34;cc.fillRect(cx-W*.11+i*W*.028,by+H*.08-h,W*.015,h)}}
+}
+// ===== 車窓ビュー(昼・夕・夜で空が変わる) =====
+const cv=$('win'),cc=cv.getContext&&cv.getContext('2d');let wx=0,wv=0,wt=0;
+function winLoop(t){
+  if(!cv.classList.contains('on'))return;requestAnimationFrame(winLoop);
+  const dt=Math.min(50,(t-wt)||16);wt=t;wv+=((F&&!F.pa?1:0)-wv)*Math.min(1,dt/500);wx+=wv*dt*.9;
+  const W=cv.clientWidth,H=cv.clientHeight;if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H}
+  const hr=new Date().getHours(),m=(hr<5||hr>=19)?0:(hr>=17?1:2),x0=W*.07,y0=H*.16,ww=W*.86,wh=H*.5,y1=y0+wh;
+  const SK=[['#02030a','#0d1736'],['#3b2a73','#ff9a62'],['#5fb0ff','#d8efff']][m],FA=['#0a1124','#4a3a6e','#8fb0d8'][m],MI=['#111a33','#3a2f55','#6f86ad'][m],NE=['#070b16','#1d1830','#33405a'][m];
+  cc.fillStyle='#14161d';cc.fillRect(0,0,W,H);
+  cc.save();cc.beginPath();cc.roundRect?cc.roundRect(x0,y0,ww,wh,28):cc.rect(x0,y0,ww,wh);cc.clip();
+  const g=cc.createLinearGradient(0,y0,0,y1);g.addColorStop(0,SK[0]);g.addColorStop(1,SK[1]);cc.fillStyle=g;cc.fillRect(x0,y0,ww,wh);
+  if(m===0){cc.fillStyle='#fff';for(let i=0;i<40;i++)cc.fillRect(x0+hs(i)*ww,y0+hs(i+99)*wh*.5,1.5,1.5)}
+  const layer=(sp,cw,fn)=>{const s=wx*sp,i0=Math.floor(s/cw)-1;for(let i=i0;i<i0+Math.ceil(ww/cw)+3;i++)fn(x0+i*cw-s,i,cw)};
+  const gy=y1-wh*.14;
+  const q=V.q,d=q?Math.max(0,Math.min(1,1-hav({lat:35.68,lng:139.77},q)/50)):.5;
+  cc.fillStyle=FA;
+  if(q&&q.lng<139.62&&q.lat<35.95){const fx=x0+ww*.72-(wx*.02)%40;cc.beginPath();cc.moveTo(fx-230,gy);cc.lineTo(fx-18,gy-175);cc.lineTo(fx+18,gy-175);cc.lineTo(fx+230,gy);cc.fill();cc.fillStyle=m===2?'#f3f7ff':'#cfd6ea';cc.beginPath();cc.moveTo(fx-45,gy-140);cc.lineTo(fx-18,gy-175);cc.lineTo(fx+18,gy-175);cc.lineTo(fx+45,gy-140);cc.lineTo(fx+20,gy-150);cc.lineTo(fx,gy-138);cc.lineTo(fx-22,gy-150);cc.fill();cc.fillStyle=FA}
+  layer(.05,300,(x,i,w)=>{const h=40+hs(i)*90;cc.beginPath();cc.moveTo(x,gy);cc.lineTo(x+w/2,gy-h);cc.lineTo(x+w,gy);cc.fill()});
+  cc.fillStyle=MI;layer(.22,36,(x,i,w)=>{const h=24+hs(i+7)*(30+d*150);cc.fillRect(x,gy-h,w-3,h);if(m===0&&hs(i)>.55){cc.fillStyle='#ffd86b';cc.fillRect(x+6,gy-h+10,5,5);cc.fillRect(x+18,gy-h+30,5,5);cc.fillStyle=MI}});
+  cc.fillStyle=NE;layer(.8,110,(x,i,w)=>{if(hs(i+3)<.25+d*.5){cc.fillRect(x,gy-34,w*.6,34);cc.beginPath();cc.moveTo(x-4,gy-34);cc.lineTo(x+w*.3,gy-56);cc.lineTo(x+w*.6+4,gy-34);cc.fill()}else{cc.beginPath();cc.arc(x+20,gy-26,22,0,7);cc.fill();cc.fillRect(x+18,gy-8,4,8)}});
+  cc.fillStyle='#0b0c10';cc.fillRect(x0,gy,ww,y1-gy);cc.fillStyle='#3a3d48';layer(6,46,(x)=>cc.fillRect(x,gy+10,26,6));
+  if(F&&F.plat){const ps=(wx-F.pw)*(F.pass?6:3.2);if(ps<ww+800){const px=x0+ww+40-ps;cc.fillStyle='#8d93a0';cc.fillRect(px,gy-12,780,20);cc.fillStyle='#5a606c';cc.fillRect(px,gy+8,780,8);cc.fillStyle='#2a2e38';for(let k=0;k<5;k++)cc.fillRect(px+30+k*170,gy-95,6,83);cc.fillStyle='#3a404c';cc.fillRect(px,gy-100,780,8);cc.fillStyle='#0055aa';cc.fillRect(px+300,gy-84,150,48);cc.fillStyle='#fff';cc.font='bold 20px sans-serif';cc.textAlign='center';cc.fillText(F.plat+(F.pass?' 通過':''),px+375,gy-54);cc.textAlign='left'}}
+  cc.strokeStyle='#000b';cc.lineWidth=3;layer(4,320,(x)=>{cc.beginPath();cc.moveTo(x,y0);cc.lineTo(x,y1);cc.moveTo(x-22,y0+wh*.18);cc.lineTo(x+22,y0+wh*.18);cc.stroke();cc.beginPath();cc.moveTo(x,y0+wh*.18);cc.quadraticCurveTo(x+160,y0+wh*.3,x+320,y0+wh*.18);cc.stroke()});
+  const r=cc.createLinearGradient(x0,y0,x0+ww,y1);r.addColorStop(0,'#ffffff18');r.addColorStop(.4,'#ffffff00');cc.fillStyle=r;cc.fillRect(x0,y0,ww,wh);
+  cc.restore();cc.strokeStyle='#2a2d38';cc.lineWidth=10;cc.beginPath();cc.roundRect?cc.roundRect(x0,y0,ww,wh,28):cc.rect(x0,y0,ww,wh);cc.stroke();
+  cc.fillStyle='#1d2029';cc.fillRect(0,y1+24,W,H);interior(W,H,y0,y1,t,F?F.mode:'執筆')}
+
+[['fpause','pause',20],['bfit','route',20],['bfol','nav',20],['bsty','map',20],['bwin','win',20],['sback','back',22],['aback','back',22],['gback','back',22],['mz1','plus',20],['mz2','minus',20],['mz3','locate',20]].forEach(([i,n,s])=>{$(i).innerHTML=ic(n,s)});
+$('acard').innerHTML=suicaSVG('a');$('gcard').innerHTML=suicaSVG('g');
+$('mh').innerHTML=ic('hist',22)+'<span>履歴</span>';$('mt').innerHTML=ic('chart',22)+'<span>トレンド</span>';$('ms').innerHTML=ic('gear',22)+'<span>設定</span>';$('psearch').innerHTML=ic('search',22)+'<span>駅を検索</span>';
+$('pback').innerHTML=ic('back',16)+' 戻る';
+$('mz1').onclick=()=>{if(F&&F.follow)F.z=Math.min(18,(F.z||15)+1);else{map&&map.zoomIn();V.user=1}};
+$('mz2').onclick=()=>{if(F&&F.follow)F.z=Math.max(10,(F.z||15)-1);else{map&&map.zoomOut();V.user=1}};
+$('mz3').onclick=()=>{if(F){F.follow=true;layoutMap(true);map&&map.dragging.disable()}else V.user=0;draw(true)};
+$('th1').onclick=$('th2').onclick=()=>$('mt').onclick();$('tdest').onclick=()=>$('psearch').onclick();$('tf1').onclick=()=>{if(F)F.clk=!F.clk};
+$('hcode').onclick=$('hname').onclick=()=>S.cur&&stationSheet(S.cur);$('acard').onclick=cardSheet;
+$('fmode').onclick=()=>{if(!F)return;sheet('<h3>集中する内容</h3><div id="chips2">'+MODES.map(([n,e])=>`<button data-m="${n}" class="${n===F.mode?'sel':''}">${ic(e,16)} ${n}</button>`).join('')+'</div>');
+  $('chips2').onclick=e=>{const m=e.target.closest&&e.target.closest('button');if(m&&F){F.mode=m.dataset.m;$('fmode').innerHTML=ic(MODES.find(x=>x[0]===F.mode)[1],20);closeSheet()}}};
+['home','plan','fly'].forEach(id=>{const s=$(id),b=document.createElement('button');b.className='fold';b.setAttribute('aria-label','パネルを開閉');b.innerHTML=ic('chev',18);b.onclick=()=>s.classList.toggle('fold');const bot=s.querySelector('.bot');bot&&bot.insertBefore(b,bot.firstChild)});
+if(S.ob)boot();else{go('ob');obShow()}
+
+</script></body></html>
